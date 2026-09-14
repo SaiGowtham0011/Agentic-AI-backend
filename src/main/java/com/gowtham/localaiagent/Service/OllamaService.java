@@ -23,9 +23,21 @@ public class OllamaService {
      * The toolResult contains the result of the previous
      * tool execution. On the first call, it can be empty.
      */
-    public AgentNextAction getNextAction(
-            String userMessage,
-            String toolResult) {
+    public AgentNextAction getNextAction(AgentState state) {
+
+        StringBuilder history = new StringBuilder();
+
+        // Add all actions and their corresponding results
+        for (int i = 0; i < state.getActions().size(); i++) {
+
+            history.append("Action: ")
+                    .append(state.getActions().get(i))
+                    .append("\n");
+
+            history.append("Result: ")
+                    .append(state.getToolResults().get(i))
+                    .append("\n");
+        }
 
         String prompt = """
             You are an AI agent.
@@ -33,7 +45,7 @@ public class OllamaService {
             User request:
             %s
 
-            Previous tool result:
+            Previous actions and results:
             %s
 
             Available tools:
@@ -45,6 +57,11 @@ public class OllamaService {
             5. current_time()
 
             Decide what to do NEXT.
+
+            IMPORTANT:
+            - Do not repeat a tool that has already been successfully executed
+              unless the user explicitly requires it again.
+            - If all required information has been collected, return a final answer.
 
             If you need a tool, respond ONLY with:
 
@@ -64,7 +81,10 @@ public class OllamaService {
               "type": "final",
               "message": "your answer"
             }
-            """.formatted(userMessage, toolResult);
+            """.formatted(
+                state.getUserMessage(),
+                history
+        );
 
         OllamaRequest request =
                 new OllamaRequest(
@@ -85,11 +105,14 @@ public class OllamaService {
         );
 
         try {
+
             return objectMapper.readValue(
                     response.getResponse(),
                     AgentNextAction.class
             );
+
         } catch (Exception e) {
+
             throw new RuntimeException(
                     "Failed to parse agent action: "
                             + response.getResponse(),

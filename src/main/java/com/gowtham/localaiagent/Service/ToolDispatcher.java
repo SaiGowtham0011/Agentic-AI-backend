@@ -63,6 +63,7 @@ public class ToolDispatcher {
                 );
 
             case "current_time":
+            case "current_time()":
                 return timetool.getCurrentTime();
 
             default:

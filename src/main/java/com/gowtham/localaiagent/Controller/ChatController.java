@@ -2,10 +2,7 @@ package com.gowtham.localaiagent.Controller;
 
 import com.gowtham.localaiagent.Service.OllamaService;
 import com.gowtham.localaiagent.Service.ToolDispatcher;
-import com.gowtham.localaiagent.dto.AgentNextAction;
-import com.gowtham.localaiagent.dto.AgentPlan;
-import com.gowtham.localaiagent.dto.ChatRequest;
-import com.gowtham.localaiagent.dto.ToolDecision;
+import com.gowtham.localaiagent.dto.*;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,8 +25,8 @@ public class ChatController {
     @PostMapping("/chat")
     public String chat(@RequestBody ChatRequest request) {
 
-        String userMessage = request.getMessage();
-        String toolResult = "";
+        // Create the agent's memory for this request
+        AgentState state = new AgentState(request.getMessage());
 
         int loopCount = 0;
 
@@ -42,22 +39,29 @@ public class ChatController {
             System.out.println("========== AGENT STEP " + loopCount + " ==========");
 
             AgentNextAction action =
-                    ollamaService.getNextAction(
-                            userMessage,
-                            toolResult
-                    );
+                    ollamaService.getNextAction(state);
 
             System.out.println("Type: " + action.getType());
             System.out.println("Tool: " + action.getTool());
 
+            // If the agent has finished, return the final answer
             if ("final".equals(action.getType())) {
                 return action.getMessage();
             }
 
-            toolResult =
+            // Remember which tool the agent selected
+            state.addAction(action.getTool());
+
+            // Execute the selected Java tool
+            String result =
                     toolDispatcher.execute(action);
 
-            System.out.println("Tool result: " + toolResult);
+            // Remember the tool result
+            state.addToolResult(result);
+
+            System.out.println(
+                    "Tool result: " + result
+            );
         }
     }
 }
