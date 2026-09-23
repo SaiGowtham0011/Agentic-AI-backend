@@ -49,6 +49,13 @@ public class ChatController {
                 return action.getMessage();
             }
 
+            // The agent is expected to either return "final" or "tool".
+            // Increases robustness of the agent.
+            if (!"tool".equals(action.getType())) {
+                return "Agent returned an invalid action type: "
+                        + action.getType();
+            }
+
             // Remember which tool the agent selected
             state.addAction(action.getTool());
 
