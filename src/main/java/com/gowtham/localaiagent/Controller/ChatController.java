@@ -56,15 +56,38 @@ public class ChatController {
                         + action.getType();
             }
 
-            // Remember which tool the agent selected
-            state.addAction(action.getTool());
+            // Convert the selected action into JSON.
+            //
+            // This allows AgentInput to store the complete
+            // input given to the tool without knowing
+            // which parameters that particular tool needs.
+            String input;
+
+            try {
+
+                input = new tools.jackson.databind.ObjectMapper()
+                        .writeValueAsString(action);
+
+            } catch (Exception e) {
+
+                return "Failed to record agent input: "
+                        + e.getMessage();
+            }
 
             // Execute the selected Java tool
             String result =
                     toolDispatcher.execute(action);
 
-            // Remember the tool result
-            state.addToolResult(result);
+            // Store the complete tool execution as one object.
+            AgentInput agentInput =
+                    new AgentInput(
+                            action.getTool(),
+                            input,
+                            result
+                    );
+
+            // Add the execution to the agent's memory.
+            state.addAgentInput(agentInput);
 
             System.out.println(
                     "Tool result: " + result

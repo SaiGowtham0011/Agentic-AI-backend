@@ -6,8 +6,8 @@ import java.util.List;
 /**
  * Stores the information collected while the agent is working.
  *
- * The agent can perform multiple steps.
- * This class remembers those steps so the LLM
+ * The agent can perform multiple tool executions.
+ * This class remembers those executions so the LLM
  * can understand what has already happened.
  */
 public class AgentState {
@@ -15,11 +15,8 @@ public class AgentState {
     // The original request from the user
     private String userMessage;
 
-    // Stores the actions performed by the agent
-    private List<String> actions = new ArrayList<>();
-
-    // Stores the results returned by the tools
-    private List<String> toolResults = new ArrayList<>();
+    // Stores complete tool executions performed by the agent
+    private List<AgentInput> agentInputs = new ArrayList<>();
 
     public AgentState(String userMessage) {
         this.userMessage = userMessage;
@@ -29,25 +26,14 @@ public class AgentState {
         return userMessage;
     }
 
-    public List<String> getActions() {
-        return actions;
-    }
-
-    public List<String> getToolResults() {
-        return toolResults;
+    public List<AgentInput> getAgentInputs() {
+        return agentInputs;
     }
 
     /**
-     * Records an action performed by the agent.
+     * Records one complete tool execution.
      */
-    public void addAction(String action) {
-        actions.add(action);
-    }
-
-    /**
-     * Records the result returned by a tool.
-     */
-    public void addToolResult(String result) {
-        toolResults.add(result);
+    public void addAgentInput(AgentInput agentInput) {
+        agentInputs.add(agentInput);
     }
 }

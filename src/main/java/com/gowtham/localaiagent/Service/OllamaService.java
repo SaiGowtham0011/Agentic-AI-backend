@@ -8,7 +8,7 @@ import tools.jackson.databind.ObjectMapper;
 @Service
 public class OllamaService {
 
-    private final RestClient  restClient;
+    private final RestClient restClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public OllamaService() {
@@ -16,72 +16,75 @@ public class OllamaService {
                 .baseUrl("http://localhost:11434")
                 .build();
     }
+
     /**
-     * Sends the current conversation state to the LLM
+     * Sends the current agent state to the LLM
      * and asks what the agent should do next.
-     *
-     * The toolResult contains the result of the previous
-     * tool execution. On the first call, it can be empty.
      */
     public AgentNextAction getNextAction(AgentState state) {
 
         StringBuilder history = new StringBuilder();
 
-        // Add all actions and their corresponding results
-        for (int i = 0; i < state.getActions().size(); i++) {
+        // Add every previous tool execution to the prompt.
+        for (AgentInput agentInput : state.getAgentInputs()) {
 
-            history.append("Action: ")
-                    .append(state.getActions().get(i))
+            history.append("Tool: ")
+                    .append(agentInput.getTool())
+                    .append("\n");
+
+            history.append("Input: ")
+                    .append(agentInput.getInput())
                     .append("\n");
 
             history.append("Result: ")
-                    .append(state.getToolResults().get(i))
-                    .append("\n");
+                    .append(agentInput.getResult())
+                    .append("\n\n");
         }
 
         String prompt = """
-            You are an AI agent.
+                You are an AI agent.
 
-            User request:
-            %s
+                User request:
+                %s
 
-            Previous actions and results:
-            %s
+                Previous tool executions:
+                %s
 
-            Available tools:
+                Available tools:
 
-            1. add(a, b)
-            2. subtract(a, b)
-            3. multiply(a, b)
-            4. divide(a, b)
-            5. current_time()
+                1. add(a, b)
+                2. subtract(a, b)
+                3. multiply(a, b)
+                4. divide(a, b)
+                5. current_time()
 
-            Decide what to do NEXT.
+                Decide what to do NEXT.
 
-            IMPORTANT:
-            - Do not repeat a tool that has already been successfully executed
-              unless the user explicitly requires it again.
-            - If all required information has been collected, return a final answer.
+                IMPORTANT:
+                - Do not repeat a tool that has already been successfully executed
+                  unless the user explicitly requires it again.
+                - Use the results from previous tools when deciding the next action.
+                - If all required information has been collected, return a final answer.
 
-            If you need a tool, respond ONLY with:
+                If you need a tool, respond ONLY with:
 
-            {
-              "type": "tool",
-              "tool": "tool_name",
-              "a": number,
-              "b": number
-            }
+                {
+                  "type": "tool",
+                  "tool": "tool_name",
+                  "a": number,
+                  "b": number
+                }
 
-            For current_time, omit a and b.
+                For current_time, omit a and b.
 
-            If you have enough information to answer the user,
-            respond ONLY with:
+                If you have enough information to answer the user,
+                respond ONLY with:
 
-            {
-              "type": "final",
-              "message": "your answer"
-            }
-            """.formatted(
+                {
+                  "type": "final",
+                  "message": "your answer"
+                }
+                """.formatted(
                 state.getUserMessage(),
                 history
         );
