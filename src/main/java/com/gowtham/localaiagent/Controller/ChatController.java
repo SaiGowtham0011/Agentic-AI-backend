@@ -1,8 +1,7 @@
 package com.gowtham.localaiagent.Controller;
 
-import com.gowtham.localaiagent.Service.OllamaService;
-import com.gowtham.localaiagent.Service.ToolDispatcher;
-import com.gowtham.localaiagent.dto.*;
+import com.gowtham.localaiagent.Service.AgentService;
+import com.gowtham.localaiagent.dto.ChatRequest;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -12,86 +11,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api")
 public class ChatController {
 
-    private final OllamaService ollamaService;
-    private final ToolDispatcher toolDispatcher;
+    private final AgentService agentService;
 
-    public ChatController(
-            OllamaService ollamaService,
-            ToolDispatcher toolDispatcher) {
-        this.ollamaService = ollamaService;
-        this.toolDispatcher = toolDispatcher;
+    public ChatController(AgentService agentService) {
+        this.agentService = agentService;
     }
 
     @PostMapping("/chat")
     public String chat(@RequestBody ChatRequest request) {
 
-        // Create the agent's memory for this request
-        AgentState state = new AgentState(request.getMessage());
-
-        int loopCount = 0;
-
-        while (true) {
-            loopCount++;
-            // Safety limit so the agent cannot run forever.
-            if (loopCount > 5) {
-                return "Agent stopped: maximum number of steps reached.";
-            }
-            System.out.println("========== AGENT STEP " + loopCount + " ==========");
-
-            AgentNextAction action =
-                    ollamaService.getNextAction(state);
-
-            System.out.println("Type: " + action.getType());
-            System.out.println("Tool: " + action.getTool());
-
-            // If the agent has finished, return the final answer
-            if ("final".equals(action.getType())) {
-                return action.getMessage();
-            }
-
-            // The agent is expected to either return "final" or "tool".
-            // Increases robustness of the agent.
-            if (!"tool".equals(action.getType())) {
-                return "Agent returned an invalid action type: "
-                        + action.getType();
-            }
-
-            // Convert the selected action into JSON.
-            //
-            // This allows AgentInput to store the complete
-            // input given to the tool without knowing
-            // which parameters that particular tool needs.
-            String input;
-
-            try {
-
-                input = new tools.jackson.databind.ObjectMapper()
-                        .writeValueAsString(action);
-
-            } catch (Exception e) {
-
-                return "Failed to record agent input: "
-                        + e.getMessage();
-            }
-
-            // Execute the selected Java tool
-            String result =
-                    toolDispatcher.execute(action);
-
-            // Store the complete tool execution as one object.
-            AgentInput agentInput =
-                    new AgentInput(
-                            action.getTool(),
-                            input,
-                            result
-                    );
-
-            // Add the execution to the agent's memory.
-            state.addAgentInput(agentInput);
-
-            System.out.println(
-                    "Tool result: " + result
-            );
-        }
+        return agentService.run(request.getMessage());
     }
 }
