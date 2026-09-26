@@ -1,106 +1,45 @@
 package com.gowtham.localaiagent.Service;
 
-import com.gowtham.localaiagent.Tools.CalculatorTools;
-import com.gowtham.localaiagent.Tools.Timetool;
+import com.gowtham.localaiagent.Interfaces.AgentTool;
 import com.gowtham.localaiagent.dto.AgentNextAction;
 import org.springframework.stereotype.Service;
 
 /**
  * Executes the tool requested by the AI agent.
  *
- * ToolRegistry tells us WHICH Java tool is available.
- * ToolDispatcher decides HOW to execute it.
+ * The dispatcher connects the agent's requested tool name
+ * with the executable tool stored in the registry.
  */
 @Service
 public class ToolDispatcher {
 
     private final ToolRegistry toolRegistry;
 
-    private final CalculatorTools calculatorTools;
-    private final Timetool timetool;
-
-    public ToolDispatcher(
-            ToolRegistry toolRegistry,
-            CalculatorTools calculatorTools,
-            Timetool timetool
-    ) {
+    public ToolDispatcher(ToolRegistry toolRegistry) {
         this.toolRegistry = toolRegistry;
-        this.calculatorTools = calculatorTools;
-        this.timetool = timetool;
     }
 
     /**
-     * Executes the action selected by the LLM.
+     * Executes the tool selected by the LLM.
      */
     public String execute(AgentNextAction action) {
 
-        String tool = action.getTool();
+        String toolName = action.getTool();
 
-        // Check whether the requested tool exists
-        Object toolObject = toolRegistry.getTool(tool);
+        // Find the executable tool from the registry.
+        AgentTool tool = toolRegistry.getTool(toolName);
 
-        if (toolObject == null) {
-            return "Tool not found: " + tool;
+        // The LLM may request a tool that does not exist.
+        if (tool == null) {
+            return "Tool not found: " + toolName;
         }
 
-        /*
-         * The registry tells us which tool class owns the tool.
-         * We still need to call the appropriate Java method.
-         */
-        if (toolObject == calculatorTools) {
+        // Execute the registered Java tool.
+        try {
+            return tool.execute(action);
 
-            switch (tool) {
-
-                case "add":
-                    return String.valueOf(
-                            calculatorTools.add(
-                                    action.getA(),
-                                    action.getB()
-                            )
-                    );
-
-                case "subtract":
-                    return String.valueOf(
-                            calculatorTools.subtract(
-                                    action.getA(),
-                                    action.getB()
-                            )
-                    );
-
-                case "multiply":
-                    return String.valueOf(
-                            calculatorTools.multiply(
-                                    action.getA(),
-                                    action.getB()
-                            )
-                    );
-
-                case "divide":
-                    return String.valueOf(
-                            calculatorTools.divide(
-                                    action.getA(),
-                                    action.getB()
-                            )
-                    );
-
-                default:
-                    return "Unknown calculator tool: " + tool;
-            }
+        } catch (Exception e) {
+            return "Tool execution failed: " + e.getMessage();
         }
-
-        if (toolObject == timetool) {
-
-            switch (tool) {
-
-                case "current_time":
-                case "current_time()":
-                    return timetool.getCurrentTime();
-
-                default:
-                    return "Unknown time tool: " + tool;
-            }
-        }
-
-        return "Tool execution not supported: " + tool;
     }
 }
